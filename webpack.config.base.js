@@ -2,7 +2,9 @@ import path from 'path';
 
 export default {
   module: {
-    loaders: [{
+    loaders: [
+      { test: /\.(png|woff|woff2|eot|ttf|svg)$/, loader: 'file-loader' },
+      {
       test: /\.jsx?$/,
       loaders: ['babel-loader'],
       exclude: /node_modules/
