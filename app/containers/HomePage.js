@@ -1,14 +1,14 @@
 import React, { Component } from 'react';
-import { AppBar, List, ListItem, SelectField, Avatar, Table, TableHeader, TableRow, TableHeaderColumn, TableRowColumn, TableBody, Toolbar, DropDownMenu, Toggle, ToolbarTitle, ToolbarGroup, ToolbarSeparator, IconMenu, IconButton, Subheader, Chip, Popover, FontIcon, Menu, CircularProgress, MenuItem, RaisedButton, Checkbox, Paper, Card, FlatButton, CardHeader, CardText, CardActions } from 'material-ui';
+import { AppBar, LinearProgress, List, ListItem, SelectField, Avatar, Table, TableHeader, TableRow, TableHeaderColumn, TableRowColumn, TableBody, Toolbar, DropDownMenu, Toggle, ToolbarTitle, ToolbarGroup, ToolbarSeparator, IconMenu, IconButton, Subheader, Chip, Popover, FontIcon, Menu, CircularProgress, MenuItem, RaisedButton, Checkbox, Paper, Card, FlatButton, CardHeader, CardText, CardActions } from 'material-ui';
 import {
   Step,
   Stepper,
   StepLabel,
 } from 'material-ui/Stepper';
-import { AvVideoLibrary, AvLibraryBooks, ActionSpellcheck } from 'material-ui/svg-icons'
+import { AvVideoLibrary, AvLibraryBooks, ActionSpellcheck, FileCreateNewFolder, FileFolderOpen, EditorAttachMoney, AvSubscriptions } from 'material-ui/svg-icons'
 import { Spinner } from 'belle'
 
-
+const {dialog} = require('electron').remote;
 const each = require('foreach');
 
 import RestKit from './../api/RestKit';
@@ -21,7 +21,12 @@ const ChipWrapper = {
     width: '120px',
     margin: 4,
   },
+  loos: {
+    margin: 4
+  },
   wrapper: {
+    justifyContent: 'center',
+    textAlign: 'center',
     display: 'flex',
     flexWrap: 'wrap',
   },
@@ -29,6 +34,16 @@ const ChipWrapper = {
 const Styles = {
   SelectFieldWidth: {
     width: 150,
+  },
+  ExampleImageInput: {
+    cursor: 'pointer',
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    left: 0,
+    width: '100%',
+    opacity: 0,
   },
 };
 const BooksHorizontalStyle = {
@@ -39,6 +54,7 @@ const BooksHorizontalStyle = {
 };
 
 var PackableMetaData = {};
+
 class BookSmallListItem extends Component {
   constructor(props) {
     super(props);
@@ -138,7 +154,7 @@ class BookSmallListItem extends Component {
   }
   handlePackageMetaData(params) {
     this.state.status = 'done';
-    this.state.output = params;
+    this.state.output = {...params, meta: this.state.metadata};
     if (this.state.packable) {
       PackableMetaData[this.state.book.id] = this.state.output;
     } else {
@@ -158,8 +174,10 @@ class BookSmallListItem extends Component {
       quality_items.push(<MenuItem key={"quality-"+index} value={index} primaryText={element} />);
     });
     var status_items = <div></div>;
+    var tire_item = <ToolbarTitle text={""}/>;
     if (this.state.packable) {
       if (this.state.status == 'calculating' || this.state.status == 'loading') {
+        tire_item = <Spinner characterStyle={{ fontSize: 20, color: '#fff' }} />;
         status_items =
           <div style={ChipWrapper.wrapper}>
             <Chip labelColor={'#fff'} backgroundColor={'#'+this.state.book.color} style={ChipWrapper.chip}>
@@ -173,6 +191,11 @@ class BookSmallListItem extends Component {
             </Chip>
           </div>;
       } else if (this.state.status == 'done') {
+        if (this.state.metadata.books[0].bundle != null) {
+          tire_item = <ToolbarTitle text={this.state.metadata.books[0].bundle.tire.label}/>;
+        } else {
+          tire_item = <ToolbarTitle text="NULL"/>;
+        }
         status_items =
           <div style={ChipWrapper.wrapper}>
             <Chip labelColor={'#fff'} backgroundColor={'#'+this.state.book.color} style={ChipWrapper.chip}>
@@ -190,6 +213,9 @@ class BookSmallListItem extends Component {
     return (
       <TableRow>
         <TableRowColumn>{status_items}</TableRowColumn>
+        <TableRowColumn style={{width:'80px'}}>
+          {tire_item}
+        </TableRowColumn>
         <TableRowColumn  style={{width:'80px'}}>
           <FlatButton
             label={RestKit.QualityLabel[this.state.quality_index]}
@@ -279,8 +305,10 @@ class FooterSummery extends Component {
     var documents_size = 0, documents_count = 0;
     var exams_size = 0, exams_count = 0;
     var total_size = 0;
+    var total_price = 0;
     each(PackableMetaData, function (element, index, next) {
       if (element != null) {
+        total_price += element.tire_amount;
         videos_count += element.videos;
         videos_size += element.videos_bytes;
         documents_count += element.documents;
@@ -298,26 +326,108 @@ class FooterSummery extends Component {
       documents_element = KamanPacker.getHumanReadableSize(documents_size);
       exams_element = KamanPacker.getHumanReadableSize(exams_size);
     }
-    let chip_size_style = {...ChipWrapper.chip, width: '180px'};
-
+    var total_element = KamanPacker.getHumanReadableSize(videos_size + documents_size + exams_size);
+    var total_price_label = "رایگان";
+    if (total_price > 0) {
+      total_price_label = (total_price/10000) + " هزار تومان";
+    }
     return (
       <div>
         <div style={ChipWrapper.wrapper}>
-          <Chip labelColor={'#fff'} backgroundColor={'#9539B3'} style={chip_size_style}>
-            <Avatar color="#9539B3" icon={<AvVideoLibrary />} />
+          <Chip labelColor={'#fff'} backgroundColor={'#222'} style={ChipWrapper.loos}>
+            <Avatar color="#000" backgroundColor="#fff" icon={<EditorAttachMoney />} />
+            {total_price_label}
+          </Chip>
+          <Chip labelColor={'#fff'} backgroundColor={'#222'} style={ChipWrapper.loos}>
+            <Avatar color="#000" backgroundColor="#fff" icon={<AvSubscriptions />} />
+            {total_element}
+          </Chip>
+          <Chip labelColor={'#fff'} backgroundColor={'#9539B3'} style={ChipWrapper.loos}>
+            <Avatar color="#fff" backgroundColor="#9539B3" icon={<AvVideoLibrary />} />
             {" مجموعا " + videos_count + " با حجم " + videos_element}
           </Chip>
-          <Chip labelColor={'#fff'} backgroundColor={'#57B339'} style={chip_size_style}>
-            <Avatar color="#57B339" icon={<AvLibraryBooks />} />
+          <Chip labelColor={'#fff'} backgroundColor={'#57B339'} style={ChipWrapper.loos}>
+            <Avatar color="#fff" backgroundColor="#57B339" icon={<AvLibraryBooks />} />
             {" مجموعا " + documents_count + " با حجم " + documents_element}
           </Chip>
-          <Chip labelColor={'#fff'} backgroundColor={'#B35839'} style={chip_size_style}>
-            <Avatar color="#B35839" icon={<ActionSpellcheck />} />
+          <Chip labelColor={'#fff'} backgroundColor={'#B35839'} style={ChipWrapper.loos}>
+            <Avatar color="#fff" backgroundColor="#B35839" icon={<ActionSpellcheck />} />
             {" مجموعا " + exams_count + " با حجم " + exams_element}
           </Chip>
         </div>
       </div>
     );
+  }
+}
+class FooterAction extends Component {
+  constructor(props) {
+    super(props);
+    this.onOpenHDDDialog = this.onOpenHDDDialog.bind(this);
+    this.onOpenDestDialog = this.onOpenDestDialog.bind(this);
+    this.onBookPackableUpdated = this.onBookPackableUpdated.bind(this);
+    this.onStartTapped = this.onStartTapped.bind(this);
+    this.state = {
+      hdd: ["/Volumes/My Passport"],
+      dest: ["/Users/peyman/Desktop"]
+    };
+    EventDispatcher.register(EventIDs.OnBookPackableUpdated, this.onBookPackableUpdated);
+  }
+
+  onOpenHDDDialog() {
+    this.state.hdd = dialog.showOpenDialog({
+      properties: ['openDirectory']
+    });
+    this.setState(this.state);
+  }
+  onOpenDestDialog() {
+    this.state.dest = dialog.showOpenDialog({
+      properties: ['openDirectory']
+    });
+    this.setState(this.state);
+  }
+  onBookPackableUpdated(params) {
+    this.setState(this.state);
+  }
+  onStartTapped() {
+    console.log(this.state);
+    KamanPacker.WritePackage(PackableMetaData, this.state.hdd[0], this.state.dest[0],
+      (state, progress, label) => {
+
+    });
+  }
+
+  render() {
+    var button_hdd = <RaisedButton label="مسیر منابع" primary={true} onTouchTap={this.onOpenHDDDialog} icon={<FileFolderOpen />}/>;
+    var button_dest = <RaisedButton label="مسیر خروجی" primary={true} onTouchTap={this.onOpenDestDialog} icon={<FileCreateNewFolder />}/>;
+    if (this.state.hdd != null) {
+      button_hdd = <RaisedButton label="مسیر خروجی" secondary={true} onTouchTap={this.onOpenHDDDialog} icon={<FileFolderOpen />}/>;
+    }
+    if (this.state.dest != null) {
+      button_dest = <RaisedButton label="مسیر منابع" secondary={true} onTouchTap={this.onOpenDestDialog} icon={<FileCreateNewFolder />}/>;
+    }
+    var has_none_null_metadata = false;
+    each(PackableMetaData, (element, index, next) => {
+      if (element != null) {
+        has_none_null_metadata = true;
+      }
+    });
+
+    var button_start_enabled = this.state.hdd != null && this.state.dest != null && has_none_null_metadata;
+    return (
+      <div>
+        <Toolbar>
+          <ToolbarGroup firstChild={true}>
+            <RaisedButton label="شروع"onTouchTap={this.onStartTapped} primary={true} fullWidth={true} disabled={!button_start_enabled}/>
+          </ToolbarGroup>
+          <ToolbarGroup>
+            <ToolbarSeparator />
+            {button_hdd}
+            <ToolbarSeparator />
+            {button_dest}
+          </ToolbarGroup>
+        </Toolbar>
+      </div>
+    )
   }
 }
 class HomePage extends Component {
@@ -335,7 +445,7 @@ class HomePage extends Component {
       default_packable: false,
       default_quality_index: 0,
       default_quality: 'base',
-      year: 4,
+      year: 8,
       field: 2,
     };
     EventDispatcher.register(EventIDs.OnStudyYearFieldFilterChanged, this.onStudyYearFieldUpdate);
@@ -369,6 +479,7 @@ class HomePage extends Component {
   }
 
   onStudyYearFieldUpdate(params) {
+    PackableMetaData = {};
     this.state.year = params.year;
     this.state.field = params.field;
     RestKit.LoadBooks(params.year, params.field, function(status, response) {
@@ -383,7 +494,7 @@ class HomePage extends Component {
   }
 
   render() {
-    let TableStyle = {...BooksHorizontalStyle, height: this.props.windowHeight - 340};
+    let TableStyle = {...BooksHorizontalStyle, height: this.props.windowHeight - 440};
     var items = null;
     if (this.state.books != null) {
       items = [];
@@ -409,47 +520,70 @@ class HomePage extends Component {
           iconElementLeft={<div></div>}
           iconElementRight={<FieldYearSelect field={this.state.field} year={this.state.year} />}
         />
-        <Paper zDepth={2} style={{padding:'5px', margin:'15px'}}>
+        <Table>
+          <TableHeader displaySelectAll={false}>
+            <TableRow selected={true}>
+              <TableHeaderColumn>
+                <div style={ChipWrapper.wrapper}>
+                  <Chip labelColor={'#fff'} backgroundColor={'#9539B3'} style={ChipWrapper.loos}>
+                    <Avatar color="#9539B3" icon={<AvVideoLibrary />} />
+                    ویدیو
+                  </Chip>
+                  <Chip labelColor={'#fff'} backgroundColor={'#57B339'} style={ChipWrapper.loos}>
+                    <Avatar color="#57B339" icon={<AvLibraryBooks />} />
+                    جزوه
+                  </Chip>
+                  <Chip labelColor={'#fff'} backgroundColor={'#B35839'} style={ChipWrapper.loos}>
+                    <Avatar color="#B35839" icon={<ActionSpellcheck />} />
+                    آزمون
+                  </Chip>
+                </div>
+              </TableHeaderColumn>
+            <TableHeaderColumn style={{width:'80px'}}>
+              قیمت بسته
+            </TableHeaderColumn>
+            <TableHeaderColumn style={{width:'80px'}}>
+                <FlatButton
+                  label={RestKit.QualityLabel[this.state.default_quality_index]}
+                  onTouchTap={this.handleTouchTap}
+                />
+                <Popover
+                  open={this.state.open}
+                  anchorEl={this.state.anchorEl}
+                  anchorOrigin={{horizontal: 'left', vertical: 'bottom'}}
+                  targetOrigin={{horizontal: 'left', vertical: 'top'}}
+                  onRequestClose={this.handleRequestClose}>
+                  <Menu onItemTouchTap={this.handleQualitySelect}>
+                    {quality_items}
+                  </Menu>
+                </Popover>
+              </TableHeaderColumn>
+              <TableHeaderColumn style={{width:'200px'}}>
+                <Checkbox
+                  label="کتاب های پک"
+                  defaultChecked={this.state.default_packable}
+                  labelPosition="left"
+                  onCheck={this.handleToggleItem}/>
+              </TableHeaderColumn>
+            </TableRow>
+          </TableHeader>
+        </Table>
+        <div style={TableStyle}>
           <Table>
-            <TableHeader displaySelectAll={false}>
-              <TableRow selected={true}>
-                <TableHeaderColumn>
-                  <FooterSummery />
-                </TableHeaderColumn>
-                <TableHeaderColumn style={{width:'80px'}}>
-                  <FlatButton
-                    label={RestKit.QualityLabel[this.state.default_quality_index]}
-                    onTouchTap={this.handleTouchTap}
-                  />
-                  <Popover
-                    open={this.state.open}
-                    anchorEl={this.state.anchorEl}
-                    anchorOrigin={{horizontal: 'left', vertical: 'bottom'}}
-                    targetOrigin={{horizontal: 'left', vertical: 'top'}}
-                    onRequestClose={this.handleRequestClose}>
-                    <Menu onItemTouchTap={this.handleQualitySelect}>
-                      {quality_items}
-                    </Menu>
-                  </Popover>
-                </TableHeaderColumn>
-                <TableHeaderColumn style={{width:'200px'}}>
-                  <Checkbox
-                    label="کتاب های پک"
-                    defaultChecked={this.state.default_packable}
-                    labelPosition="left"
-                    onCheck={this.handleToggleItem}/>
-                </TableHeaderColumn>
-              </TableRow>
-            </TableHeader>
+            <TableBody>
+              {items}
+            </TableBody>
           </Table>
-          <div style={TableStyle}>
-            <Table>
-              <TableBody>
-                {items}
-              </TableBody>
-            </Table>
-          </div>
-        </Paper>
+        </div>
+        <div style={{margin:'10px'}}>
+          <FooterSummery />
+        </div>
+        <FooterAction />
+        <div style={{margin:'20px'}}>
+          <Toolbar>
+            <LinearProgress mode="indeterminate" />
+          </Toolbar>
+        </div>
       </div>
     );
   }
